@@ -2,7 +2,7 @@ import strformat
 import htmlgen
 
 
-let THEME = "DRYAD"
+let THEME = "AQUA"
 proc css*(): string =
   # TODO: make this select from a list of themes, or pull from the database
   var font_family = "Iosevka, monospace"
