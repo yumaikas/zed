@@ -9,9 +9,9 @@ c.ready(function(){
 
     c.ajax('GET', '/notes', '', '', function(err, resp) {
         if (err) {
-            flash
+            flash("An error happened trying to load notes.", "error");
+            return;
         }
-
         B.do('set', ['State', 'zed', 'notes'], resp.body)
     });
 
@@ -20,6 +20,18 @@ c.ready(function(){
         var styles = [
             [".block", {
                 display: "block",
+            }],
+            [".hrefbtn", {
+                "border-radius": "3px",
+                "border": "1px solid cyan",
+                "padding": "3px",
+            }],
+            [".rlmargin", {
+                "margin-left": "0.3em",
+                "margin-right": "0.3em"
+            }],
+            ["#searchbar, #tagline", {
+                "border": "2px inset",
             }],
             ["h4.message", {
                 "min-width": "50%",
@@ -39,8 +51,12 @@ c.ready(function(){
             [".message.error", {
                 "color": "red"
             }],
-            ["#note-editor", {
+            [".note-editor", {
                 "min-height": "3em", "border": "2px inset"
+            }],
+            ["pre.note-editor", {
+                "overflow-x": "auto",
+                "white-space": "pre-wrap",
             }],
             [".mdown *:first-child", { 
                 "margin": "0px"
@@ -76,12 +92,12 @@ c.ready(function(){
             }
         }
 
-        function labeledInput(name, id, attrs) {
+        function labeledInput(name, id, attrs, evts) {
             attrs.id = id;
             attrs.name = id;
             return [
                 ["label", { class: "block", for: id}, name],
-                ["input", attrs]
+                ["input", B.ev(attrs, evts || [])]
             ];
         }
 
@@ -94,20 +110,20 @@ c.ready(function(){
             var evts = [
                 ["onchange", "search", "*"],
                 ["onkeyup", "search", "*"],
+                ["onfocus", "setTagFocus", "to", "searchBar"]
             ];
 
-            console.log("SEARCH: " + searchTerms);
             return [
                 ["label", { class: "block", for: id}, name],
                 ["input", B.ev({id: id, name: id, type: "text", value: searchTerms}, evts)]
             ];
         }
 
-        function editorArea(id) {
+        function editorArea(id, text) {
             // Content
             return [
-                ["label", {for: "note-editor", class: "block"}, "Note:"],
-                ['div', { id: "note-editor", contenteditable: "true", }] 
+                ["label", {for: id, class: "block"}, "Note:"],
+                ['pre', { class: "note-editor", id: id, contenteditable: "true", }, text || ""] 
             ];
         }
 
@@ -115,28 +131,129 @@ c.ready(function(){
             return ["button", B.ev(attrs || {}, evts || undefined), name];
         }
 
+        // Turn notes into subviews
+        function renderNote(n, idx) {
+            function renderTagbar(n) {
+                var tags = n.tagline.split(" ");
+                return dale.do(tags, function(t) {
+                    if (/^#\d+$/.test(t) || /@[^ ]+/.test(t)) {
+                        return ["a", B.ev({href: "#", class: "rlmargin"}, ["onclick", 'noteAddTag', ['notes', idx], t]), t];
+                    } else {
+                        return " " + t + " ";
+                    }
+                });
+            }
+            var noteEvts = [
+                ['noteEdit', ['notes', idx], function() {
+                    B.set(['State', 'zed', 'activeEditNotes', idx], true);
+                    B.do('change', ['State', 'zed', 'notes', idx]);
+                }],
+                ['noteAddTag', ['notes', idx], function(x, newTag) {
+                    var tl = c("#tagline");
+                    var search = c("#searchbar");
+                    var tagFocus = B.get(["State", "zed", "tagFocus"]);
+                    console.log(tagFocus)
+                    if (tagFocus === "searchBar") {
+                        search.value = (search.value + " " + newTag).trim();
+                    } else {
+                        tl.value = (tl.value + " " + newTag).trim();
+                    }
+                    B.do('search', '*');
+                }],
+                ['noteSave', ['notes', idx], function() {
+                    var content = c("#note-editor-" + idx).innerText;
+                    var tagline = c("#note-tagbar-" + idx).value;
+                    B.do('ajax', ['updateNote', idx], content, tagline);
+                }],
+                ['ajax', ['updateNote', idx], function(x, content, tagline) {
+                    var body = {
+                        id: n.id,
+                        content: content,
+                        tagline: tagline,
+                    };
+                    c.ajax('POST', '/notes/update', {}, body, function(err, resp) {
+                        if (err) {
+                            console.log(err);
+                            flash("An error happened while trying to save a note!", "error");
+                        } else {
+                            n.tagline = tagline;
+                            n.content = content;
+                            B.set(['State', 'zed', 'activeEditNotes', idx], false);
+                            B.do('change', ['State', 'zed', 'notes', idx]);
+                        }
+                    });
+                }],
+            ];
+
+            return B.view(['State', 'zed', 'notes', idx], 
+                {
+                    listen: noteEvts,
+                    tag:"div", 
+                    attrs: {class:"note"}
+                },
+                function(x){
+                    if (B.get('State', 'zed', 'activeEditNotes', idx)) {
+                        return [
+                            ["div", ""],
+                            editorArea("note-editor-" + idx, n.content),
+                            ["input", {id: "note-tagbar-" + idx, value: n.tagline, size: n.tagline.length}],
+                            ["a", B.ev({href:"#"}, ['onclick', 'noteSave', ['notes', idx]]), "Save"]
+                        ];
+                    }
+
+                    return [
+                        ['div', {opaque:true, class: "mdown", id: "md-container-" + n.id}],
+                        ['hr'],
+                        ['div', {class: "tagline"}, [
+                            ["a", B.ev({href: "#", class: "hrefbtn"}, ['onclick','noteEdit',['notes', idx]]), "Edit"],
+                            ["a", B.ev({href:"#", style: "margin-left: 15px"}, ["onclick", "noteAddTag", ["notes", idx], "#" + n.id]), "#" + n.id],
+                            renderTagbar(n),
+                        ]]
+                    ];
+                }
+            );
+        }
+
         function filterTerms(search, notes){
-            return dale.fil(notes, false, function(n){
+            var numExtra = B.get(['State', 'zed', 'addedNotes']) || 0;
+            var l = dale.fil(notes, false, function(n){
                 var corpus = n.content + " \n " + n.tagline + " \n@#"+n.id + " ";
                 if (corpus.indexOf(search) !== -1) {
                     return n;
                 }
                 return false;
             });
+
+            if (l.length > (7 + numExtra)) {
+                B.set(['State', 'zed', 'showMore'], true);
+            }
+
+            return l.slice(0, 7 + numExtra);
         }
 
-        var evts = [
+
+        var zedEvts = [
             ["flashMessage", "show", function(x, message, level) {
                 B.do('set', ['State', 'zed', 'flash'], {
                     message: message,
                     level: level
                 });
             }],
+            ["showMore", "notes", function(x) {
+                var addedNotes = B.get(['State', 'zed', 'addedNotes']) || 0;
+                B.do('set', ['State', 'zed', 'addedNotes'], addedNotes + 7);
+                B.do('change', ['State', 'zed']);
+            }],
+            ["setTagFocus", "to", function(x, target) {
+                B.do('set', ['State', 'zed', 'tagFocus'], target);
+            }],
             ['search', '*', {}, function() {
                 console.log("searching");
                 var terms = c("#searchbar").value;
                 localStorage.setItem("searchTerms", terms);
-                B.do('set', ['State', 'zed', 'searchTerms'], terms);
+                B.set(['State', 'zed', 'showMore'], false);
+                B.set(['State', 'zed', 'searchTerms'], terms);
+                B.do('change', ['State', 'zed']);
             }],
             ['flashMessage', 'dismiss', function() {
                 B.do('set', ['State', 'zed', 'flash'], null);
@@ -151,15 +268,16 @@ c.ready(function(){
                 B.do('ajax', 'createNote', tagline, content);
             }],
             ['change', ['State', 'zed'], { priority: -10000 }, function(x) {
-                console.log("XEH: " + JSON.stringify(x.path));
+                // console.log("XEH: " + JSON.stringify(x.path));
                 dale.do(
                     filterTerms(
                         B.get(['State', 'zed', 'searchTerms']) || "",
                         B.get(['State', 'zed', 'notes'])),
-                    function(n) {
+                    function(n, idx) {
+                        if (B.get(['State', 'zed', 'activeEditNotes', idx])) { return }
                         c("#md-container-" + n.id).innerHTML = marked(n.content);
                     }
-                );
+                )
             }],
             ['ajax', 'createNote', function(x, tagline, content) {
                 c.ajax('POST', '/notes/create', {}, 
@@ -185,64 +303,32 @@ c.ready(function(){
             }],
         ];
 
-        // Turn notes into subviews
-        function renderNote(n, idx) {
-
-            var evts = [
-                ['noteEdit', ['notes', idx], function() {
-                    B.set(['State', 'zed', 'activeEditNotes', idx], true);
-                    B.do('change', ['State', 'zed', 'notes', idx]);
-                }],
-                ['noteSave', ['notes', idx], function() {
-                    B.set(['State', 'zed', 'activeEditNotes', idx], false);
-                    B.do('change', ['State', 'zed', 'notes', idx]);
-                }],
-            ];
-
-            return B.view(['State', 'zed', 'notes', idx], 
-                {
-                    listen: evts,
-                    tag:"div", 
-                    attrs: {class:"note"}
-                },
-                function(x){
-                    if (B.get('State', 'zed', 'activeEditNotes', idx)) {
-                        return [
-                            ["div", ""],
-                            ["a", B.ev({href:"#"}, ['onclick', 'noteSave', ['notes', idx]]), "Save"]
-                        ];
-
-                    }
-
-                    return [
-                        ['div', {opaque:true, class: "mdown", id: "md-container-" + n.id}],
-                        ['hr'],
-                        ['div', {class: "tagline"}, [
-                            ["a", B.ev({href: "#"}, ['onclick','noteEdit',['notes', idx]]), "Edit"],
-                            ["span", {style: "margin-left 5px"}, " #" + n.id],
-                            ["span", " " + n.tagline]
-                        ]]
-                    ];
-                }
-            );
-        }
-
         return B.view(['State', 'zed'], 
-            {listen: evts},
+            {listen: zedEvts},
             function(x) {
-                var loadedNotes = B.get(['State', 'zed', 'notes'], ) || [];
+                var loadedNotes = B.get(['State', 'zed', 'notes']) || [];
                 var searchTerms = B.get(['State', 'zed', 'searchTerms']) || "";
+                var terms = filterTerms(searchTerms, loadedNotes);
+                var showMore = B.get(['State', 'zed', 'showMore']) || false;
+                var showMoreDisp = [];
+                if (showMore) {
+                    showMoreDisp = ['a', B.ev({href: "#"}, [
+                        ['onclick', 'showMore', 'notes']
+                    ]), "Show more"];
+                }
                 var l = [
                     ['style', styles],
                     ["h2", "Zed Notes"],
                     loadFlash(),
                     searchbar(),
-                    editorArea("#note-editor"),
-                    labeledInput("Tag-line", "tagline", {type:"text"}),
+                    editorArea("note-editor"),
+                    labeledInput("Tag-line", "tagline", {type:"text"}, 
+                        ["onfocus", "setTagFocus", "to", "tagline"]),
                     button("Save", {}, ["onclick", "save", "new-note"]),
-                    dale.do(filterTerms(searchTerms, loadedNotes).slice(0, 10), function(n, idx) {
+                    dale.do(terms, function(n, idx) {
                         return renderNote(n, idx);
-                    })
+                    }),
+                    showMoreDisp
                 ];
                 return l;
         });

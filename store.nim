@@ -18,8 +18,9 @@ db("zed.db", "", "", ""):
             deleted*: Option[DateTime]
         
 proc setup*() = 
-    withDb:
-        createTables(force=true)
+    discard
+    # withDb:
+        # createTables(force=true)
 
 proc `%`*(t: DateTime): JsonNode =
     return %(t.toTime().toUnix())

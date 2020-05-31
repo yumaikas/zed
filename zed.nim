@@ -1,7 +1,7 @@
 import jester, viewbase, store, json, httpcore, times, norm/sqlite
 
 settings:
-    bindAddr = "localhost"
+    bindAddr = "0.0.0.0"
     staticDir = "./static"
 
 setup()
@@ -57,6 +57,7 @@ routes:
             note.updated = some(now().utc)
 
             note.update()
+            resp Http200, "Successfully saved!"
 
 
     
