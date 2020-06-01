@@ -1,6 +1,7 @@
 import norm/sqlite, times, options, json
+import webconfig
 
-db("zed.db", "", "", ""):
+db(DB_FILE, "", "", ""):
     type
         Note* = object
             content*: string
