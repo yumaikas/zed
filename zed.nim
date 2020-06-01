@@ -1,10 +1,16 @@
 import jester, viewbase, store, json, httpcore, times, norm/sqlite
+from nativesockets import Port
+import webconfig
+
+var bindAddr = "localhost"
+
+if BIND_LOCAL_ONLY:
+    bindAddr = "0.0.0.0"
 
 settings:
-    bindAddr = "0.0.0.0"
+    port = nativeSockets.Port(webconfig.PORT)
+    bindAddr = bindAddr
     staticDir = "./static"
-
-setup()
 
 routes: 
     get "/":

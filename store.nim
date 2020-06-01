@@ -18,9 +18,8 @@ db("zed.db", "", "", ""):
             deleted*: Option[DateTime]
         
 proc setup*() = 
-    discard
-    # withDb:
-        # createTables(force=true)
+    withDb:
+       createTables(force=true)
 
 proc `%`*(t: DateTime): JsonNode =
     return %(t.toTime().toUnix())
@@ -35,3 +34,6 @@ proc searchNotes*(searchTerms: string): seq[Note] =
             AND tagline not like '@archive'
             ORDER BY created desc
         """, params=[?searchTerms, ?searchTerms])
+
+when isMainModule:
+    setup()

@@ -25,6 +25,7 @@ c.ready(function(){
                 "border-radius": "3px",
                 "border": "1px solid cyan",
                 "padding": "3px",
+                "margin-right": "6px",
             }],
             [".rlmargin", {
                 "margin-left": "0.3em",
@@ -63,10 +64,12 @@ c.ready(function(){
             }],
             [".mdown",  {
             }],
-            [".tagline", {
+            [".tagbottom", {
+                "margin-bottom": "40px"
             }],
             [".note", {
                 "margin": "4px",
+                "margin-top": "20px",
                 "padding": "5px",
                 "border": "1px dashed cyan",
                 "border-radius": "3px"
@@ -165,6 +168,9 @@ c.ready(function(){
                     var tagline = c("#note-tagbar-" + idx).value;
                     B.do('ajax', ['updateNote', idx], content, tagline);
                 }],
+                ['todoDone', ['todos', idx], function() {
+                    B.do('ajax', ['updateNote', idx], n.content, n.tagline.replace(/@todo\b/g, ""))
+                }],
                 ['ajax', ['updateNote', idx], function(x, content, tagline) {
                     var body = {
                         id: n.id,
@@ -192,6 +198,18 @@ c.ready(function(){
                     attrs: {class:"note"}
                 },
                 function(x){
+
+                    var doneView = [];
+                    if (/@todo/.test(n.tagline)) {
+                        var doneView = [
+                            ["a", B.ev({href: "#", class: "hrefbtn"}, 
+                            [["onclick", 'todoDone', ['todos', idx]]]
+                        ), "Finish!"],
+                        ["br"],
+                        ["br"]
+                    ];
+                    }
+
                     if (B.get('State', 'zed', 'activeEditNotes', idx)) {
                         return [
                             ["div", ""],
@@ -206,6 +224,7 @@ c.ready(function(){
                         ['hr'],
                         ['div', {class: "tagline"}, [
                             ["a", B.ev({href: "#", class: "hrefbtn"}, ['onclick','noteEdit',['notes', idx]]), "Edit"],
+                            doneView,
                             ["a", B.ev({href:"#", style: "margin-left: 15px"}, ["onclick", "noteAddTag", ["notes", idx], "#" + n.id]), "#" + n.id],
                             renderTagbar(n),
                         ]]
@@ -325,6 +344,7 @@ c.ready(function(){
                     labeledInput("Tag-line", "tagline", {type:"text"}, 
                         ["onfocus", "setTagFocus", "to", "tagline"]),
                     button("Save", {}, ["onclick", "save", "new-note"]),
+                    ["hr", {class: "tagbottom"}],
                     dale.do(terms, function(n, idx) {
                         return renderNote(n, idx);
                     }),

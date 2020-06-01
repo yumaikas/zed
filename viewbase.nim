@@ -1,8 +1,7 @@
 import strformat
 import htmlgen
+import webconfig
 
-
-let THEME = "AQUA"
 proc css*(): string =
   # TODO: make this select from a list of themes, or pull from the database
   var font_family = "Iosevka, monospace"
