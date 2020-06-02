@@ -111,7 +111,6 @@ c.ready(function(){
             var searchTerms = B.get(['State', 'zed', 'searchTerms']) || "";
 
             var evts = [
-                ["onchange", "search", "*"],
                 ["onkeyup", "search", "*"],
                 ["onfocus", "setTagFocus", "to", "searchBar"]
             ];
@@ -220,7 +219,7 @@ c.ready(function(){
                     }
 
                     return [
-                        ['div', {opaque:true, class: "mdown", id: "md-container-" + n.id}],
+                        ['div', {opaque:true, class: "mdown", class: "md-container-" + n.id}],
                         ['hr'],
                         ['div', {class: "tagline"}, [
                             ["a", B.ev({href: "#", class: "hrefbtn"}, ['onclick','noteEdit',['notes', idx]]), "Edit"],
@@ -235,12 +234,28 @@ c.ready(function(){
 
         function filterTerms(search, notes){
             var numExtra = B.get(['State', 'zed', 'addedNotes']) || 0;
-            var l = dale.fil(notes, false, function(n){
-                var corpus = n.content + " \n " + n.tagline + " \n@#"+n.id + " ";
-                if (corpus.indexOf(search) !== -1) {
-                    return n;
+            var terms = dale.fil((search || "").split(","), false,function(x) {
+                // Keep trailing commas from matching _everything_
+                if (x.trim() === "")  return false;
+                return { term: x.trim(), results: [] };
+            });
+
+            if (terms.length === 0)  {
+                return notes;
+            }
+
+            for (var i = 0; i < notes.length; i++) {
+                var n = notes[i];
+                var corpus =  "@#" + n.id + " " + n.tagline + " \n " + n.content;
+                for (var j = 0; j < terms.length; j++) {
+                    if (corpus.indexOf(terms[j].term) !== -1) {
+                        terms[j].results.push(n);
+                    }
                 }
-                return false;
+            }
+
+            var l = dale.acc(terms, [], function(acc, x) {
+                return acc.concat(x.results); 
             });
 
             if (l.length > (7 + numExtra)) {
@@ -294,7 +309,10 @@ c.ready(function(){
                         B.get(['State', 'zed', 'notes'])),
                     function(n, idx) {
                         if (B.get(['State', 'zed', 'activeEditNotes', idx])) { return }
-                        c("#md-container-" + n.id).innerHTML = marked(n.content);
+
+                        dale.do(c(".md-container-" + n.id), function(e) {
+                            e.innerHTML = marked(n.content);
+                        });
                     }
                 )
             }],
