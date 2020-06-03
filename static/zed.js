@@ -235,9 +235,14 @@ c.ready(function(){
         function filterTerms(search, notes){
             var numExtra = B.get(['State', 'zed', 'addedNotes']) || 0;
             var terms = dale.fil((search || "").split(","), false,function(x) {
+                var reverse = false;
                 // Keep trailing commas from matching _everything_
                 if (x.trim() === "")  return false;
-                return { term: x.trim(), results: [] };
+                if (x.indexOf("!desc") !== -1) {
+                    x = x.replace("!desc", "")
+                    reverse = true;
+                }
+                return { term: x.trim(), results: [], reverse: reverse };
             });
 
             if (terms.length === 0)  {
@@ -255,6 +260,7 @@ c.ready(function(){
             }
 
             var l = dale.acc(terms, [], function(acc, x) {
+                if (x.reverse) {x.results.reverse();}
                 return acc.concat(x.results); 
             });
 
