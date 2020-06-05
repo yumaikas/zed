@@ -1,6 +1,21 @@
-c.ready(function(){
 
-    B.trample = 0;
+c.ready(function(){
+    function debounce(func, wait, immediate) {
+        var timeout;
+        return function() {
+            var context = this, args = arguments;
+            var later = function() {
+                timeout = null;
+                if (!immediate) func.apply(context, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(context, args);
+        };
+    };
+
+    B.trample = 50;
     window.flash = function flash(message, level) {
         B.do('flashMessage', 'show', message, level);
     };
@@ -12,7 +27,10 @@ c.ready(function(){
             flash("An error happened trying to load notes.", "error");
             return;
         }
-        B.do('set', ['State', 'zed', 'notes'], resp.body)
+        B.do('set', ['State', 'zed', 'notes'], dale.do(resp.body,function(n){
+            n.rendered = marked(n.content);
+            return n;
+        }));
     });
 
 
@@ -183,6 +201,7 @@ c.ready(function(){
                         } else {
                             n.tagline = tagline;
                             n.content = content;
+                            n.rendered = marked(content);
                             B.set(['State', 'zed', 'activeEditNotes', idx], false);
                             B.do('change', ['State', 'zed', 'notes', idx]);
                         }
@@ -271,6 +290,9 @@ c.ready(function(){
             return l.slice(0, 7 + numExtra);
         }
 
+        var doSearch = debounce(function() {
+            B.do('change', ['State', 'zed']);
+        }, 350);
 
         var zedEvts = [
             ["flashMessage", "show", function(x, message, level) {
@@ -288,12 +310,11 @@ c.ready(function(){
                 B.do('set', ['State', 'zed', 'tagFocus'], target);
             }],
             ['search', '*', {}, function() {
-                console.log("searching");
                 var terms = c("#searchbar").value;
-                localStorage.setItem("searchTerms", terms);
                 B.set(['State', 'zed', 'showMore'], false);
                 B.set(['State', 'zed', 'searchTerms'], terms);
-                B.do('change', ['State', 'zed']);
+                localStorage.setItem("searchTerms", terms);
+                doSearch();
             }],
             ['flashMessage', 'dismiss', function() {
                 B.do('set', ['State', 'zed', 'flash'], null);
@@ -317,7 +338,7 @@ c.ready(function(){
                         if (B.get(['State', 'zed', 'activeEditNotes', idx])) { return }
 
                         dale.do(c(".md-container-" + n.id), function(e) {
-                            e.innerHTML = marked(n.content);
+                            e.innerHTML = n.rendered;
                         });
                     }
                 )
@@ -338,6 +359,7 @@ c.ready(function(){
                     notes.unshift({
                         tagline: tagline,
                         content: content,
+                        rendered: marked(content),
                         id: parseInt(resp.body, 10),
                     });
                     B.do('change', ['State', 'zed', 'notes']);
