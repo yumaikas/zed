@@ -4,7 +4,7 @@ import webconfig
 
 var bindAddr = "localhost"
 
-if BIND_LOCAL_ONLY:
+if not BIND_LOCAL_ONLY:
     bindAddr = "0.0.0.0"
 
 settings:
@@ -18,6 +18,13 @@ routes:
         <div id="zed"></div>
         <script src="/marked.min.js"></script>
         <script src="/zed.js"></script>
+        """)
+
+    get "/cal":
+        resp pageBase("""
+        <div id="cal"></div>
+        <script src="/marked.min.js"></script>
+        <script src="/zcal.js"></script>
         """)
     
     get "/notes":
