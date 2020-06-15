@@ -17,6 +17,7 @@ routes:
         resp pageBase("""
         <div id="zed"></div>
         <script src="/marked.min.js"></script>
+        <script src="/notes.js"></script>
         <script src="/zed.js"></script>
         """)
 
@@ -24,6 +25,7 @@ routes:
         resp pageBase("""
         <div id="cal"></div>
         <script src="/marked.min.js"></script>
+        <script src="/notes.js"></script>
         <script src="/zcal.js"></script>
         """)
     

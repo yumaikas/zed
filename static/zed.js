@@ -15,7 +15,6 @@ c.ready(function(){
         };
     };
 
-    B.trample = 50;
     window.flash = function flash(message, level) {
         B.do('flashMessage', 'show', message, level);
     };
@@ -35,65 +34,6 @@ c.ready(function(){
 
 
     var zedRoot = function() {
-        var styles = [
-            [".block", {
-                display: "block",
-            }],
-            [".hrefbtn", {
-                "border-radius": "3px",
-                "border": "1px solid cyan",
-                "padding": "3px",
-                "margin-right": "6px",
-            }],
-            [".rlmargin", {
-                "margin-left": "0.3em",
-                "margin-right": "0.3em"
-            }],
-            ["#searchbar, #tagline", {
-                "border": "2px inset",
-            }],
-            ["h4.message", {
-                "min-width": "50%",
-                "padding": "8px",
-                "border": "1px solid cyan",
-                "border-radius": "5px",
-            }],
-            [".message div", {
-                "margin-bottom": "10px",
-            }],
-            [".message.info", {
-                "color": "blue"
-            }],
-            [".message.warning", {
-                "color": "yellow"
-            }],
-            [".message.error", {
-                "color": "red"
-            }],
-            [".note-editor", {
-                "min-height": "3em", "border": "2px inset"
-            }],
-            ["pre.note-editor", {
-                "overflow-x": "auto",
-                "white-space": "pre-wrap",
-            }],
-            [".mdown *:first-child", { 
-                "margin": "0px"
-            }],
-            [".mdown",  {
-            }],
-            [".tagbottom", {
-                "margin-bottom": "40px"
-            }],
-            [".note", {
-                "margin": "4px",
-                "margin-top": "20px",
-                "padding": "5px",
-                "border": "1px dashed cyan",
-                "border-radius": "3px"
-            }]
-        ];
-
         function loadFlash() {
             var flash = B.get(['State', 'zed', 'flash']);
             if (flash) {
@@ -111,15 +51,6 @@ c.ready(function(){
             } else {
                 return [];
             }
-        }
-
-        function labeledInput(name, id, attrs, evts) {
-            attrs.id = id;
-            attrs.name = id;
-            return [
-                ["label", { class: "block", for: id}, name],
-                ["input", B.ev(attrs, evts || [])]
-            ];
         }
 
         function searchbar() {
@@ -152,106 +83,7 @@ c.ready(function(){
         }
 
         // Turn notes into subviews
-        function renderNote(n, idx) {
-            function renderTagbar(n) {
-                var tags = n.tagline.split(" ");
-                return dale.do(tags, function(t) {
-                    if (/^#\d+$/.test(t) || /@[^ ]+/.test(t)) {
-                        return ["a", B.ev({href: "#", class: "rlmargin"}, ["onclick", 'noteAddTag', ['notes', idx], t]), t];
-                    } else {
-                        return " " + t + " ";
-                    }
-                });
-            }
-            var noteEvts = [
-                ['noteEdit', ['notes', idx], function() {
-                    B.set(['State', 'zed', 'activeEditNotes', idx], true);
-                    B.do('change', ['State', 'zed', 'notes', idx]);
-                }],
-                ['noteAddTag', ['notes', idx], function(x, newTag) {
-                    var tl = c("#tagline");
-                    var search = c("#searchbar");
-                    var tagFocus = B.get(["State", "zed", "tagFocus"]);
-                    console.log(tagFocus)
-                    if (tagFocus === "searchBar") {
-                        search.value = (search.value + " " + newTag).trim();
-                    } else {
-                        tl.value = (tl.value + " " + newTag).trim();
-                    }
-                    B.do('search', '*');
-                }],
-                ['noteSave', ['notes', idx], function() {
-                    var content = c("#note-editor-" + idx).innerText;
-                    var tagline = c("#note-tagbar-" + idx).value;
-                    B.do('ajax', ['updateNote', idx], content, tagline);
-                }],
-                ['todoDone', ['todos', idx], function() {
-                    B.do('ajax', ['updateNote', idx], n.content, n.tagline.replace(/@todo\b/g, ""))
-                }],
-                ['ajax', ['updateNote', idx], function(x, content, tagline) {
-                    var body = {
-                        id: n.id,
-                        content: content,
-                        tagline: tagline,
-                    };
-                    c.ajax('POST', '/notes/update', {}, body, function(err, resp) {
-                        if (err) {
-                            console.log(err);
-                            flash("An error happened while trying to save a note!", "error");
-                        } else {
-                            n.tagline = tagline;
-                            n.content = content;
-                            n.rendered = marked(content);
-                            B.set(['State', 'zed', 'activeEditNotes', idx], false);
-                            B.do('change', ['State', 'zed', 'notes', idx]);
-                        }
-                    });
-                }],
-            ];
-
-            return B.view(['State', 'zed', 'notes', idx], 
-                {
-                    listen: noteEvts,
-                    tag:"div", 
-                    attrs: {class:"note"}
-                },
-                function(x){
-
-                    var doneView = [];
-                    if (/@todo/.test(n.tagline)) {
-                        var doneView = [
-                            ["a", B.ev({href: "#", class: "hrefbtn"}, 
-                            [["onclick", 'todoDone', ['todos', idx]]]
-                        ), "Finish!"],
-                        ["br"],
-                        ["br"]
-                    ];
-                    }
-
-                    if (B.get('State', 'zed', 'activeEditNotes', idx)) {
-                        return [
-                            ["div", ""],
-                            editorArea("note-editor-" + idx, n.content),
-                            ["input", {id: "note-tagbar-" + idx, value: n.tagline, size: n.tagline.length}],
-                            ["a", B.ev({href:"#"}, ['onclick', 'noteSave', ['notes', idx]]), "Save"]
-                        ];
-                    }
-
-                    return [
-                        ['div', {opaque:true, class: "mdown", class: "md-container-" + n.id}],
-                        ['hr'],
-                        ['div', {class: "tagline"}, [
-                            ["a", B.ev({href: "#", class: "hrefbtn"}, ['onclick','noteEdit',['notes', idx]]), "Edit"],
-                            doneView,
-                            ["a", B.ev({href:"#", style: "margin-left: 15px"}, ["onclick", "noteAddTag", ["notes", idx], "#" + n.id]), "#" + n.id],
-                            renderTagbar(n),
-                        ]]
-                    ];
-                }
-            );
-        }
-
-        function filterTerms(search, notes){
+        function filterTerms(search, notes, numExtra){
             var numExtra = B.get(['State', 'zed', 'addedNotes']) || 0;
             var terms = dale.fil((search || "").split(","), false,function(x) {
                 var reverse = false;
@@ -265,7 +97,10 @@ c.ready(function(){
             });
 
             if (terms.length === 0)  {
-                return notes;
+                return {
+                    notes: notes.slice(0, 7 + numExtra),
+                    hasMore: notes.length > (7 + numExtra)
+                };
             }
 
             for (var i = 0; i < notes.length; i++) {
@@ -287,10 +122,18 @@ c.ready(function(){
                 B.set(['State', 'zed', 'showMore'], true);
             }
 
-            return l.slice(0, 7 + numExtra);
+            return {
+                notes: l.slice(0, 7 + numExtra), 
+                hasMore: l.length > (7 + numExtra),
+
+            };
         }
 
         var doSearch = debounce(function() {
+            var terms = c("#searchbar").value;
+            B.set(['State', 'zed', 'showMore'], false);
+            B.set(['State', 'zed', 'searchTerms'], terms);
+            localStorage.setItem("searchTerms", terms);
             B.do('change', ['State', 'zed']);
         }, 350);
 
@@ -310,10 +153,6 @@ c.ready(function(){
                 B.do('set', ['State', 'zed', 'tagFocus'], target);
             }],
             ['search', '*', {}, function() {
-                var terms = c("#searchbar").value;
-                B.set(['State', 'zed', 'showMore'], false);
-                B.set(['State', 'zed', 'searchTerms'], terms);
-                localStorage.setItem("searchTerms", terms);
                 doSearch();
             }],
             ['flashMessage', 'dismiss', function() {
@@ -330,10 +169,10 @@ c.ready(function(){
             }],
             ['change', ['State', 'zed'], { priority: -10000 }, function(x) {
                 // console.log("XEH: " + JSON.stringify(x.path));
-                dale.do(
-                    filterTerms(
+                var fil = filterTerms(
                         B.get(['State', 'zed', 'searchTerms']) || "",
-                        B.get(['State', 'zed', 'notes'])),
+                        B.get(['State', 'zed', 'notes']));
+                dale.do(fil.notes,
                     function(n, idx) {
                         if (B.get(['State', 'zed', 'activeEditNotes', idx])) { return }
 
@@ -341,7 +180,7 @@ c.ready(function(){
                             e.innerHTML = n.rendered;
                         });
                     }
-                )
+                );
             }],
             ['ajax', 'createNote', function(x, tagline, content) {
                 c.ajax('POST', '/notes/create', {}, 
@@ -374,15 +213,17 @@ c.ready(function(){
                 var loadedNotes = B.get(['State', 'zed', 'notes']) || [];
                 var searchTerms = B.get(['State', 'zed', 'searchTerms']) || "";
                 var terms = filterTerms(searchTerms, loadedNotes);
-                var showMore = B.get(['State', 'zed', 'showMore']) || false;
+                var showMore = terms.hasMore;
                 var showMoreDisp = [];
                 if (showMore) {
                     showMoreDisp = ['a', B.ev({href: "#"}, [
                         ['onclick', 'showMore', 'notes']
                     ]), "Show more"];
                 }
+                console.log("Test");
+                console.log(loadedNotes);
                 var l = [
-                    ['style', styles],
+                    ['style', zStyles],
                     ["h2", "Zed Notes"],
                     loadFlash(),
                     searchbar(),
@@ -391,8 +232,11 @@ c.ready(function(){
                         ["onfocus", "setTagFocus", "to", "tagline"]),
                     button("Save", {}, ["onclick", "save", "new-note"]),
                     ["hr", {class: "tagbottom"}],
-                    dale.do(terms, function(n, idx) {
-                        return renderNote(n, idx);
+                    dale.do(terms.notes, function(n, idx) {
+                        return renderNote(n, 
+                                B.get(['State', 'zed', 'activeEditNotes', idx]),
+                                ["State", "zed", "notes"],
+                                idx);
                     }),
                     showMoreDisp
                 ];

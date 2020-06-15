@@ -16,18 +16,10 @@ c.ready(function() {
     ];
 
     var months = [
-        "Jan", 
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun", 
-        "Jul",
-        "Aug", 
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec"
+        "Jan", "Feb", "Mar",
+        "Apr", "May", "Jun", 
+        "Jul", "Aug", "Sep",
+        "Oct", "Nov", "Dec"
     ];
 
     var monthView = function() {
@@ -115,7 +107,8 @@ c.ready(function() {
                     B.do('change', ['zcal', 'date']);
                 }]
             ]
-        }, function() {
+        },
+        function() {
             var monthIdx = B.get(['zcal', 'date', 'month']);
             var year = B.get(['zcal', 'date', 'year']);
             console.log(monthIdx);
@@ -125,7 +118,8 @@ c.ready(function() {
                     " " + months[monthIdx] + " - " + year + " ",
                     ["a", B.ev({href:"#"}, ['onclick', 'prevMonth', '*']), "Next"],
                 ]],
-                monthView()
+                monthView(),
+                renderNotes(),
             ];
         });
     }
