@@ -1,5 +1,52 @@
+function notesToDateBoxes(notes) {
+    var dateMap = {};
+
+    dale.do(notes, function(n) {
+        var parts = /@(\d+|\*)-(\d+|\*)-(\d+|\*)/.exec(n.tagline);
+        if (!parts) return;
+        dateMap[parts[1]] = dateMap[parts[1]] || {};
+        dateMap[parts[1]][parts[2]] = dateMap[parts[1]][parts[2]] || {};
+        dateMap[parts[1]][parts[2]][parts[3]] = dateMap[parts[1]][parts[2]][parts[3]] || [];
+        dateMap[parts[1]][parts[2]][parts[3]].push(n);
+    });
+
+    return dateMap;
+}
 c.ready(function() {
     // TODO: Load in existing notes that have date info on them
+
+    c.ajax('GET', '/notes', '', '', function(err, resp) {
+        if (err) {
+            flash("An error happened trying to load notes.", "error");
+            return
+        }
+
+        var boxedNotes = notesToDateBoxes(dale.do(resp.body, function(n) {
+            n.rendered = marked(n.content);
+            return n;
+        }));
+
+        B.do('set', ['zcal', 'notes'], boxedNotes);
+    });
+
+    function notesForDate(date) {
+        console.log(date);
+        var notes = (B.get('zcal', 'notes') || {});
+        console.log("notes:" + notes);
+        var forYear = (notes[date.year] || {});
+        console.log(forYear);
+        var forMonth = (forYear[date.month + 1] || {});
+        console.log("For month: " + forMonth);
+        var forDay = forMonth[date.date] || [];
+        console.log("For Day: " + forDay);
+
+        return forDay;
+    }
+
+    window.flash = function flash(message, level) {
+        B.do('flashMessage', 'show', message, level);
+    };
+
     // TODO: Mark a given date as having events or not.
     var now = new Date();
     B.set(['zcal', 'date', 'month'], now.getMonth());
@@ -23,7 +70,12 @@ c.ready(function() {
     ];
 
     var monthView = function() {
-        return B.view(['zcal', 'date'], function() {
+        return B.view(['zcal', 'date'], {
+            listen: [["viewNotes", "*", function(x, date) {
+                localStorage.setItem("one_time_search", "@" + date.year + "-" + date.month + "-" + date.date)
+                window.location = "/"
+            }]]
+        }, function() {
             // A calendar is a 6x7 table
             var date = B.get(['zcal', 'date']);
 
@@ -51,16 +103,26 @@ c.ready(function() {
                         dale.do(weekDays, function() {
                             dtCounter++;
                             var monthDate = dtCounter - firstDayOffset;
+
                             if (monthDate> 0 && monthDate <= lastDay) {
-                                console.log()
-                                if (dtNow.getMonth() == date.month 
-                                    && dtNow.getFullYear() == date.year 
-                                    && monthDate == dtNow.getDate()
-                                ) {
-                                    return ['td', {style: "font-weight: bold; color: yellow"}, monthDate];
-                                } else {
-                                    return ['td', monthDate];
-                                }
+                                var dayDate= {
+                                    year: date.year,
+                                    month: date.month + 1,
+                                    date: monthDate
+                                };
+                                var notes = notesForDate({
+                                    year: date.year,
+                                    month: date.month,
+                                    date: monthDate
+                                });
+                                console.log(notes);
+                                var isCurrentDate = dtNow.getMonth() == date.month 
+                                        && dtNow.getFullYear() == date.year 
+                                        && monthDate == dtNow.getDate();
+                                var dateDisp = notes.length > 0 ? monthDate + "*" : monthDate;
+                                var attr = B.ev({"href": "#", class: (isCurrentDate ? "currDate": "")}, [["onclick", "viewNotes", ["*"], dayDate]])
+                                var monthDisp = ["a", attr, dateDisp];
+                                return ['td', [monthDisp]];
                             } else {
                                 return ['td', '...'];
                             }
@@ -89,29 +151,24 @@ c.ready(function() {
         return B.view(['zcal', 'date'], {
             listen: [
                 ['nextMonth', ['*'], function() {
-                    console.log("XEH");
                     var date = B.get(['zcal', 'date']);
                     date.month -= 1;
-                    console.log(date);
                     date = wrapDate(date);
                     B.do('set', ['zcal', 'date'], date);
                     B.do('change', ['zcal', 'date']);
                 }],
                 ['prevMonth', ['*'], function() {
-                    console.log("PEX");
                     var date = B.get(['zcal', 'date']);
                     date.month += 1;
-                    console.log(date);
                     date = wrapDate(date);
                     B.do('set', ['zcal', 'date'], date);
                     B.do('change', ['zcal', 'date']);
-                }]
+                }],
             ]
         },
         function() {
             var monthIdx = B.get(['zcal', 'date', 'month']);
             var year = B.get(['zcal', 'date', 'year']);
-            console.log(monthIdx);
             return [ 
                 ['h3', [
                     ["a", B.ev({href:"#"}, ['onclick', 'nextMonth', '*']), "Prev"],
@@ -119,10 +176,33 @@ c.ready(function() {
                     ["a", B.ev({href:"#"}, ['onclick', 'prevMonth', '*']), "Next"],
                 ]],
                 monthView(),
-                renderNotes(),
             ];
         });
     }
 
-    B.mount("#cal", pickerView());
+    var fullView = function() {
+        return B.view(['zcal'], {
+            listen: [
+                ["flashMessage", "show", function(x, message, level) {
+                    B.do('set', ['zcal', 'flash'], {
+                        message: message,
+                        level: level
+                    });
+                }],
+                ["flashMessage", "dismiss", function() {
+                    B.do('set', ['zcal', 'flash'], null);
+                }]
+            ]
+        }, function() {
+            var pickedDate = B.get('zcal', 'date');
+
+            return [
+                ["style", zStyles],
+                ["h2", "Zed Planner"],
+                pickerView()
+            ];
+        });
+    }
+
+    B.mount("#cal", fullView());
 });

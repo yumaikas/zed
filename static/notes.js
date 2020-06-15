@@ -1,3 +1,17 @@
+function debounce(func, wait, immediate) {
+    var timeout;
+    return function() {
+        var context = this, args = arguments;
+        var later = function() {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+        };
+        var callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+    };
+};
 var zStyles = [
             [".block", {
                 display: "block",
@@ -45,6 +59,10 @@ var zStyles = [
             }],
             [".mdown",  {
             }],
+            ["a.currDate", {
+                "font-weight": "bold",
+                "color": "yellow",
+            }],
             [".tagbottom", {
                 "margin-bottom": "40px"
             }],
@@ -56,14 +74,22 @@ var zStyles = [
                 "border-radius": "3px"
             }]
 ];
-    function labeledInput(name, id, attrs, evts) {
-        attrs.id = id;
-        attrs.name = id;
-        return [
-            ["label", { class: "block", for: id}, name],
-            ["input", B.ev(attrs, evts || [])]
-        ];
-    }
+function labeledInput(name, id, attrs, evts) {
+    attrs.id = id;
+    attrs.name = id;
+    return [
+        ["label", { class: "block", for: id}, name],
+        ["input", B.ev(attrs, evts || [])]
+    ];
+}
+function editorArea(id, text) {
+    // Content
+    return [
+        ["label", {for: id, class: "block"}, "Note:"],
+        ['pre', { class: "note-editor", id: id, contenteditable: "true", }, text || ""] 
+    ];
+}
+
 function renderNote(n, isEditNote, path, idx) {
     function renderTagbar(n) {
         var tags = n.tagline.split(" ");

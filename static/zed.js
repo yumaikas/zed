@@ -1,25 +1,12 @@
 
 c.ready(function(){
-    function debounce(func, wait, immediate) {
-        var timeout;
-        return function() {
-            var context = this, args = arguments;
-            var later = function() {
-                timeout = null;
-                if (!immediate) func.apply(context, args);
-            };
-            var callNow = immediate && !timeout;
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-            if (callNow) func.apply(context, args);
-        };
-    };
 
     window.flash = function flash(message, level) {
         B.do('flashMessage', 'show', message, level);
     };
     B.set(['State', 'zed', 'notes'], []);
-    B.set(['State', 'zed', 'searchTerms'], localStorage.getItem("searchTerms") || "");
+    B.set(['State', 'zed', 'searchTerms'], localStorage.getItem("one_time_search") || localStorage.getItem("searchTerms") || "");
+    localStorage.removeItem("one_time_search");
 
     c.ajax('GET', '/notes', '', '', function(err, resp) {
         if (err) {
@@ -67,14 +54,6 @@ c.ready(function(){
             return [
                 ["label", { class: "block", for: id}, name],
                 ["input", B.ev({id: id, name: id, type: "text", value: searchTerms}, evts)]
-            ];
-        }
-
-        function editorArea(id, text) {
-            // Content
-            return [
-                ["label", {for: id, class: "block"}, "Note:"],
-                ['pre', { class: "note-editor", id: id, contenteditable: "true", }, text || ""] 
             ];
         }
 
@@ -225,6 +204,7 @@ c.ready(function(){
                 var l = [
                     ['style', zStyles],
                     ["h2", "Zed Notes"],
+                    ["h3", ["a", {"href": "/cal"}, "Calendar"]],
                     loadFlash(),
                     searchbar(),
                     editorArea("note-editor"),
