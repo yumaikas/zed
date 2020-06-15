@@ -6,7 +6,6 @@ c.ready(function(){
     };
     B.set(['State', 'zed', 'notes'], []);
     B.set(['State', 'zed', 'searchTerms'], localStorage.getItem("one_time_search") || localStorage.getItem("searchTerms") || "");
-    localStorage.removeItem("one_time_search");
 
     c.ajax('GET', '/notes', '', '', function(err, resp) {
         if (err) {
@@ -199,8 +198,8 @@ c.ready(function(){
                         ['onclick', 'showMore', 'notes']
                     ]), "Show more"];
                 }
-                console.log("Test");
-                console.log(loadedNotes);
+                var tagBar = localStorage.getItem("one_time_search") || (c("#tagline") || {}).value || "";
+                console.log("Tagbar: " +tagBar);
                 var l = [
                     ['style', zStyles],
                     ["h2", "Zed Notes"],
@@ -208,7 +207,7 @@ c.ready(function(){
                     loadFlash(),
                     searchbar(),
                     editorArea("note-editor"),
-                    labeledInput("Tag-line", "tagline", {type:"text"}, 
+                    labeledInput("Tag-line", "tagline", {type:"text", value: tagBar}, 
                         ["onfocus", "setTagFocus", "to", "tagline"]),
                     button("Save", {}, ["onclick", "save", "new-note"]),
                     ["hr", {class: "tagbottom"}],
@@ -220,6 +219,9 @@ c.ready(function(){
                     }),
                     showMoreDisp
                 ];
+                if (localStorage.getItem("one_time_search")) {
+                    localStorage.removeItem("one_time_search");
+                }
                 return l;
         });
     };
